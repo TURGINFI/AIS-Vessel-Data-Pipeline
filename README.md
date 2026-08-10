@@ -26,12 +26,12 @@ flowchart TD
 - Backend: Python, FastAPI, Pydantic schemas, async ingestion, REST, WebSocket.
 - Storage: SQLite through a repository abstraction so PostgreSQL/PostGIS can replace it later.
 - Prediction: baseline constant-velocity trajectory predictor using speed over ground and course over ground.
-- Data source: `ReplayAISProvider` by default, with an optional conservative public HTTP API adapter.
+- Data source: `ReplayAISProvider` by default, with optional public HTTP and AISStream WebSocket adapters.
 - Containers: separate frontend and backend containers orchestrated by Docker Compose.
 
 ## Data Flow
 
-1. `ReplayAISProvider` reads `data/sample/replay_ais.csv`.
+1. The configured AIS provider reads replay data or receives a lawful public AIS stream.
 2. The ingestion service validates and normalizes each AIS position.
 3. SQLite stores recent vessel positions and maintains the latest position per vessel.
 4. WebSocket clients receive live vessel updates.
@@ -55,6 +55,43 @@ Open:
 - Backend health: `http://localhost:8000/api/health`
 
 No external AIS API key is required for the default replay demo.
+
+## Showing Public Live AIS Traffic
+
+The replay dataset intentionally contains only a few vessels so the project runs anywhere without credentials. To show live public AIS traffic, configure a lawful public AIS provider and let the backend ingest it. The frontend will display every vessel the provider sends through the backend.
+
+This project includes an `AISStreamProvider` for AISStream-compatible WebSocket feeds. AISStream uses a WebSocket endpoint, a free API key, and one or more geographic bounding boxes. The adapter does not send MMSI filters, so it receives all vessels delivered within the configured boxes.
+
+Example `.env` for a global subscription:
+
+```bash
+AIS_PROVIDER=aisstream
+AIS_API_KEY=replace-with-your-own-aisstream-key
+AIS_STREAM_URL=wss://stream.aisstream.io/v0/stream
+AIS_BOUNDING_BOXES=-90,-180,90,180
+AIS_FILTER_MESSAGE_TYPES=PositionReport,ShipStaticData,StandardClassBPositionReport,ExtendedClassBPositionReport
+```
+
+Example `.env` for the Gulf of Finland:
+
+```bash
+AIS_PROVIDER=aisstream
+AIS_API_KEY=replace-with-your-own-aisstream-key
+AIS_BOUNDING_BOXES=59.3,23.4,60.6,26.5
+```
+
+Then restart:
+
+```bash
+docker compose up --build
+```
+
+Important operational notes:
+
+- "All vessels" means all vessels that the selected public provider lawfully sends for the configured bounding boxes.
+- AIS coverage depends on terrestrial receivers, satellite feeds, provider availability, account limits, and the selected area.
+- A worldwide stream can be very high volume. For local demos, start with a regional bounding box and expand only when the provider and browser can handle the traffic.
+- Never commit a real API key. Keep it in `.env` or your deployment secret manager.
 
 ## Local Development
 
@@ -86,10 +123,13 @@ Important variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `AIS_PROVIDER` | `replay` or `public_api`. |
+| `AIS_PROVIDER` | `replay`, `aisstream`, or `public_api`. |
 | `AIS_API_URL` | Public AIS HTTP endpoint for the optional adapter. |
 | `AIS_API_KEY` | Optional upstream API key. Never commit real keys. |
 | `AIS_POLL_INTERVAL` | Minimum polling interval for HTTP providers. |
+| `AIS_STREAM_URL` | Public AIS WebSocket endpoint for `AIS_PROVIDER=aisstream`. |
+| `AIS_BOUNDING_BOXES` | Geographic subscription boxes as `min_lat,min_lon,max_lat,max_lon`; separate multiple boxes with semicolons. |
+| `AIS_FILTER_MESSAGE_TYPES` | Upstream AIS message types to receive from WebSocket providers. |
 | `DATABASE_URL` | SQLite database URL. |
 | `REPLAY_DATA_PATH` | Replay CSV path. |
 | `REPLAY_SPEED_MULTIPLIER` | Replay acceleration factor. |
@@ -128,9 +168,10 @@ FastAPI automatically publishes full OpenAPI documentation at `/docs`.
 AIS sources are implemented behind an adapter interface:
 
 - `ReplayAISProvider`: deterministic CSV replay for demos and tests.
+- `AISStreamProvider`: public WebSocket streaming adapter with bounding-box subscriptions, reconnection, backoff, and no MMSI filtering by default.
 - `PublicAPIProvider`: optional conservative HTTP polling adapter with interval control, deduplication, rate-limit handling, exponential backoff, and no direct frontend access.
 
-Future adapters can support public WebSocket feeds or MQTT without changing the API or frontend.
+Future adapters can support other public WebSocket feeds or MQTT without changing the API or frontend.
 
 ## Legal and Privacy Scope
 
@@ -184,7 +225,7 @@ Current backend tests cover validation, SQLite deduplication, the health endpoin
 
 - Add a coastline or land-mask validator.
 - Add PostgreSQL/PostGIS repository implementation.
-- Add public AIS WebSocket or MQTT provider adapters.
+- Add additional public AIS provider adapters.
 - Add model evaluation notebooks and a lightweight ML predictor.
 - Add route corridor correction using historical public AIS tracks.
 - Add marker clustering for high-density vessel traffic.

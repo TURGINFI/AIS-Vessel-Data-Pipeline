@@ -10,6 +10,11 @@ services:
       AIS_API_URL: ${AIS_API_URL:-}
       AIS_API_KEY: ${AIS_API_KEY:-}
       AIS_POLL_INTERVAL: ${AIS_POLL_INTERVAL:-15}
+      AIS_REQUEST_TIMEOUT_SECONDS: ${AIS_REQUEST_TIMEOUT_SECONDS:-10}
+      AIS_MAX_BACKOFF_SECONDS: ${AIS_MAX_BACKOFF_SECONDS:-60}
+      AIS_STREAM_URL: ${AIS_STREAM_URL:-wss://stream.aisstream.io/v0/stream}
+      AIS_BOUNDING_BOXES: ${AIS_BOUNDING_BOXES:--90,-180,90,180}
+      AIS_FILTER_MESSAGE_TYPES: ${AIS_FILTER_MESSAGE_TYPES:-PositionReport,ShipStaticData,StandardClassBPositionReport,ExtendedClassBPositionReport}
       DATABASE_URL: sqlite:////app/storage/ais.db
       REPLAY_DATA_PATH: /app/data/sample/replay_ais.csv
       REPLAY_SPEED_MULTIPLIER: ${REPLAY_SPEED_MULTIPLIER:-30}
@@ -45,4 +50,3 @@ services:
 
 volumes:
   backend_storage:
-

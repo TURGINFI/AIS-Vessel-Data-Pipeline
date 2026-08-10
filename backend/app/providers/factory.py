@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from app.core.settings import Settings
 from app.providers.base import AISProvider
+from app.providers.aisstream import AISStreamProvider
 from app.providers.public_api import PublicAPIProvider
 from app.providers.replay import ReplayAISProvider
 
@@ -24,5 +25,13 @@ def create_ais_provider(settings: Settings) -> AISProvider:
             request_timeout_seconds=settings.ais_request_timeout_seconds,
             max_backoff_seconds=settings.ais_max_backoff_seconds,
         )
+    if provider == "aisstream":
+        return AISStreamProvider(
+            stream_url=settings.ais_stream_url,
+            api_key=settings.ais_api_key,
+            bounding_boxes=settings.ais_bounding_box_list,
+            filter_message_types=settings.ais_filter_message_type_list,
+            request_timeout_seconds=settings.ais_request_timeout_seconds,
+            max_backoff_seconds=settings.ais_max_backoff_seconds,
+        )
     raise ValueError(f"Unsupported AIS_PROVIDER value: {settings.ais_provider}")
-

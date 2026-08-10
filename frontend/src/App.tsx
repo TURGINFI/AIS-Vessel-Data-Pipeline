@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Anchor, Clock3 } from "lucide-react";
 
 import { fetchSystemStatus, fetchVesselHistory, fetchVesselPrediction, fetchVessels } from "./api";
@@ -18,6 +18,8 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [autoFollow, setAutoFollow] = useState(true);
   const [lastRefreshError, setLastRefreshError] = useState<string | null>(null);
+  const pendingUpdatesRef = useRef<Record<string, VesselPosition>>({});
+  const updateFlushTimerRef = useRef<number | undefined>();
 
   const mergeVessels = useCallback((positions: VesselPosition[]) => {
     setVesselsByMmsi((current) => {
@@ -31,12 +33,29 @@ export default function App() {
 
   const handleVesselUpdate = useCallback(
     (message: VesselUpdateMessage) => {
-      mergeVessels([message.data]);
+      pendingUpdatesRef.current[message.data.mmsi] = message.data;
+      if (updateFlushTimerRef.current !== undefined) {
+        return;
+      }
+      updateFlushTimerRef.current = window.setTimeout(() => {
+        const positions = Object.values(pendingUpdatesRef.current);
+        pendingUpdatesRef.current = {};
+        updateFlushTimerRef.current = undefined;
+        mergeVessels(positions);
+      }, 250);
     },
     [mergeVessels]
   );
 
   const connectionStatus = useVesselStream(handleVesselUpdate);
+
+  useEffect(() => {
+    return () => {
+      if (updateFlushTimerRef.current !== undefined) {
+        window.clearTimeout(updateFlushTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -157,7 +176,7 @@ export default function App() {
           </span>
           <div>
             <strong>AIS Trajectory Predictor</strong>
-            <span>Replay-powered maritime tracking dashboard</span>
+            <span>Public AIS and replay maritime tracking dashboard</span>
           </div>
         </div>
         <div className="top-time">
@@ -214,4 +233,3 @@ export default function App() {
     </div>
   );
 }
-
