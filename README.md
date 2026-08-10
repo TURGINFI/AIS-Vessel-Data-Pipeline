@@ -4,6 +4,12 @@ A lightweight containerized AIS vessel tracking and trajectory prediction system
 
 The first version runs completely offline with replayed sample AIS data. Start it with Docker Compose, open the frontend, and vessels immediately move on an interactive map. The frontend never calls external AIS services directly.
 
+## AI Assistance Disclosure
+
+This project was created as an AI-assisted software engineering project. The implementation, documentation, configuration, and frontend text were generated with AI assistance. Human contributors provided the project goals, reviewed AI-generated suggestions, selected the preferred technical direction, and made the final decisions about what to include.
+
+See [docs/AI_ASSISTANCE.md](docs/AI_ASSISTANCE.md) for the full project disclosure.
+
 ## Architecture
 
 ```mermaid
