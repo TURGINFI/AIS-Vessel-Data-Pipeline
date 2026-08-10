@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      AIS_PROVIDER: ${AIS_PROVIDER:-replay}
+      AIS_API_URL: ${AIS_API_URL:-}
+      AIS_API_KEY: ${AIS_API_KEY:-}
+      AIS_POLL_INTERVAL: ${AIS_POLL_INTERVAL:-15}
+      DATABASE_URL: sqlite:////app/storage/ais.db
+      REPLAY_DATA_PATH: /app/data/sample/replay_ais.csv
+      REPLAY_SPEED_MULTIPLIER: ${REPLAY_SPEED_MULTIPLIER:-30}
+      REPLAY_LOOP: ${REPLAY_LOOP:-true}
+      HISTORY_WINDOW_MINUTES: ${HISTORY_WINDOW_MINUTES:-60}
+      MAX_POSITIONS_PER_VESSEL: ${MAX_POSITIONS_PER_VESSEL:-500}
+      PREDICTION_HORIZON_SECONDS: ${PREDICTION_HORIZON_SECONDS:-300}
+      PREDICTION_STEP_SECONDS: ${PREDICTION_STEP_SECONDS:-30}
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${FRONTEND_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${FRONTEND_WS_URL:-ws://localhost:8000}
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend_storage:
+
