@@ -13,6 +13,8 @@ interface MapViewProps {
 }
 
 const DEFAULT_CENTER: L.LatLngExpression = [59.92, 24.82];
+const CANVAS_MARKER_THRESHOLD = 750;
+type VesselLayer = L.Marker | L.CircleMarker;
 
 export function MapView({
   vessels,
@@ -24,7 +26,8 @@ export function MapView({
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const markersRef = useRef<Map<string, VesselLayer>>(new Map());
+  const markerModeRef = useRef<"arrow" | "canvas">("arrow");
   const historyLineRef = useRef<L.Polyline | null>(null);
   const predictionLineRef = useRef<L.Polyline | null>(null);
   const hasFitInitialBoundsRef = useRef(false);
@@ -61,27 +64,41 @@ export function MapView({
       return;
     }
 
+    const markerMode = vessels.length > CANVAS_MARKER_THRESHOLD ? "canvas" : "arrow";
+    if (markerMode !== markerModeRef.current) {
+      markersRef.current.forEach((marker) => marker.removeFrom(map));
+      markersRef.current.clear();
+      markerModeRef.current = markerMode;
+    }
+
     const activeMmsis = new Set(vessels.map((vessel) => vessel.mmsi));
 
     vessels.forEach((vessel) => {
       const position: L.LatLngExpression = [vessel.latitude, vessel.longitude];
       const isSelected = vessel.mmsi === selectedMmsi;
       const existing = markersRef.current.get(vessel.mmsi);
-      const icon = createVesselIcon(vessel, isSelected);
 
       if (existing) {
         existing.setLatLng(position);
-        existing.setIcon(icon);
+        if (existing instanceof L.Marker && markerMode === "arrow") {
+          existing.setIcon(createVesselIcon(vessel, isSelected));
+        }
+        if (existing instanceof L.CircleMarker && markerMode === "canvas") {
+          existing.setStyle(createCanvasMarkerStyle(isSelected));
+        }
         existing.off("click");
         existing.on("click", () => onSelectVessel(vessel.mmsi));
         return;
       }
 
-      const marker = L.marker(position, {
-        icon,
-        keyboard: true,
-        title: vessel.vessel_name || vessel.mmsi
-      });
+      const marker =
+        markerMode === "canvas"
+          ? L.circleMarker(position, createCanvasMarkerStyle(isSelected)).bindTooltip(vessel.vessel_name || vessel.mmsi)
+          : L.marker(position, {
+              icon: createVesselIcon(vessel, isSelected),
+              keyboard: true,
+              title: vessel.vessel_name || vessel.mmsi
+            });
       marker.on("click", () => onSelectVessel(vessel.mmsi));
       marker.addTo(map);
       markersRef.current.set(vessel.mmsi, marker);
@@ -172,6 +189,17 @@ function createVesselIcon(vessel: VesselPosition, selected: boolean): L.DivIcon 
   });
 }
 
+function createCanvasMarkerStyle(selected: boolean): L.CircleMarkerOptions {
+  return {
+    radius: selected ? 7 : 4,
+    color: selected ? "#f2a51a" : "#053b46",
+    weight: selected ? 3 : 1,
+    fillColor: selected ? "#f2a51a" : "#18b6c8",
+    fillOpacity: selected ? 0.95 : 0.75,
+    opacity: 0.95
+  };
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -180,4 +208,3 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-

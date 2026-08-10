@@ -20,6 +20,8 @@ FastAPI publishes the interactive OpenAPI documentation at:
 
 `/ws/vessels` streams live vessel updates from the backend.
 
+The frontend receives backend-normalized updates only. It never connects to an external AIS service directly. When `AIS_PROVIDER=aisstream`, the backend subscribes to the configured public AIS WebSocket bounding boxes and broadcasts every valid vessel position it receives.
+
 Example message:
 
 ```json
@@ -39,4 +41,3 @@ Example message:
   }
 }
 ```
-

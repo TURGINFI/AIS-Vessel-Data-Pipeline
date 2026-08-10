@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     ais_poll_interval: float = Field(default=15.0, alias="AIS_POLL_INTERVAL")
     ais_request_timeout_seconds: float = Field(default=10.0, alias="AIS_REQUEST_TIMEOUT_SECONDS")
     ais_max_backoff_seconds: float = Field(default=60.0, alias="AIS_MAX_BACKOFF_SECONDS")
+    ais_stream_url: str = Field(default="wss://stream.aisstream.io/v0/stream", alias="AIS_STREAM_URL")
+    ais_bounding_boxes: str = Field(default="-90,-180,90,180", alias="AIS_BOUNDING_BOXES")
+    ais_filter_message_types: str = Field(
+        default="PositionReport,ShipStaticData,StandardClassBPositionReport,ExtendedClassBPositionReport",
+        alias="AIS_FILTER_MESSAGE_TYPES",
+    )
 
     replay_data_path: str = Field(default="data/sample/replay_ais.csv", alias="REPLAY_DATA_PATH")
     replay_speed_multiplier: float = Field(default=30.0, alias="REPLAY_SPEED_MULTIPLIER")
@@ -50,8 +56,32 @@ class Settings(BaseSettings):
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
+    @property
+    def ais_bounding_box_list(self) -> list[list[list[float]]]:
+        boxes: list[list[list[float]]] = []
+        for raw_box in self.ais_bounding_boxes.split(";"):
+            values = [value.strip() for value in raw_box.split(",") if value.strip()]
+            if not values:
+                continue
+            if len(values) != 4:
+                raise ValueError(
+                    "AIS_BOUNDING_BOXES must use 'min_lat,min_lon,max_lat,max_lon' boxes separated by semicolons"
+                )
+            min_lat, min_lon, max_lat, max_lon = [float(value) for value in values]
+            south = max(min(min_lat, max_lat), -90.0)
+            north = min(max(min_lat, max_lat), 90.0)
+            west = max(min(min_lon, max_lon), -180.0)
+            east = min(max(min_lon, max_lon), 180.0)
+            boxes.append([[south, west], [north, east]])
+        if not boxes:
+            raise ValueError("AIS_BOUNDING_BOXES must contain at least one bounding box")
+        return boxes
+
+    @property
+    def ais_filter_message_type_list(self) -> list[str]:
+        return [message_type.strip() for message_type in self.ais_filter_message_types.split(",") if message_type.strip()]
+
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
