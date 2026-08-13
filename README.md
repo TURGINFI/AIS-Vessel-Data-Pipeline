@@ -2,11 +2,17 @@
 
 A lightweight containerized AIS vessel tracking and trajectory prediction system for public, civilian AIS research and education.
 
-The first version runs completely offline with replayed sample AIS data. Start it with Docker Compose, open the frontend, and vessels immediately move on an interactive map. The frontend never calls external AIS services directly.
+The default version runs completely offline with replayed sample AIS data. Start it with Docker Compose, open the frontend, and vessels immediately move on an interactive map. The frontend never calls external AIS services directly.
 
 ## AI Assistance Disclosure
 
-This project was created as an AI-assisted software engineering project. The implementation, documentation, configuration, and frontend text were generated with AI assistance. Human contributors provided the project goals, reviewed AI-generated suggestions, selected the preferred technical direction, and made the final decisions about what to include.
+This project was created as an AI-assisted software engineering project. Almost all implementation, documentation, configuration, tests, and frontend text were produced by an AI model under human direction. The human author designed the project structure, provided the project goals, reviewed AI-generated suggestions, selected the preferred technical direction, and made the final decisions about what to include.
+
+This repository is the second implementation of the project. The first version was completed manually. This AI-assisted version was built to compare robustness, maintainability, and implementation quality against the manual implementation while preserving the human-designed structure.
+
+AI tools used in this project:
+
+- OpenAI Codex / ChatGPT GPT-5 coding agent for code generation, debugging, documentation, test updates, and repository maintenance.
 
 See [docs/AI_ASSISTANCE.md](docs/AI_ASSISTANCE.md) for the full project disclosure.
 
@@ -64,7 +70,7 @@ No external AIS API key is required for the default replay demo.
 
 ## Showing Public Live AIS Traffic
 
-The replay dataset intentionally contains only a few vessels so the project runs anywhere without credentials. To show live public AIS traffic, configure a lawful public AIS provider and let the backend ingest it. The frontend will display every vessel the provider sends through the backend.
+The replay dataset contains 20 deterministic civilian AIS-like vessels so the project runs anywhere without credentials while still showing meaningful map density. To show live public AIS traffic, configure a lawful public AIS provider and let the backend ingest it. The frontend will display every vessel the provider sends through the backend.
 
 This project includes an `AISStreamProvider` for AISStream-compatible WebSocket feeds. AISStream uses a WebSocket endpoint, a free API key, and one or more geographic bounding boxes. The adapter does not send MMSI filters, so it receives all vessels delivered within the configured boxes.
 

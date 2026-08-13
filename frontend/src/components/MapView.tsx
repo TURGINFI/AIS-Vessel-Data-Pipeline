@@ -1,5 +1,6 @@
 import L from "leaflet";
-import { useEffect, useRef } from "react";
+import { Maximize2 } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
 
 import type { PredictionPoint, VesselPosition } from "../types";
 
@@ -30,7 +31,7 @@ export function MapView({
   const markerModeRef = useRef<"arrow" | "canvas">("arrow");
   const historyLineRef = useRef<L.Polyline | null>(null);
   const predictionLineRef = useRef<L.Polyline | null>(null);
-  const hasFitInitialBoundsRef = useRef(false);
+  const lastAutoFitVesselCountRef = useRef(0);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) {
@@ -57,6 +58,26 @@ export function MapView({
       mapRef.current = null;
     };
   }, []);
+
+  const fitAllVessels = useCallback(
+    (animate = true) => {
+      const map = mapRef.current;
+      const bounds = getVesselBounds(vessels);
+      if (!map || !bounds) {
+        return;
+      }
+
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.18), {
+          animate,
+          maxZoom: 12,
+          padding: [34, 34]
+        });
+      }
+      lastAutoFitVesselCountRef.current = vessels.length;
+    },
+    [vessels]
+  );
 
   useEffect(() => {
     const map = mapRef.current;
@@ -111,12 +132,14 @@ export function MapView({
       }
     });
 
-    if (vessels.length > 0 && !hasFitInitialBoundsRef.current) {
-      const bounds = L.latLngBounds(vessels.map((vessel) => [vessel.latitude, vessel.longitude]));
-      map.fitBounds(bounds.pad(0.25), { animate: false });
-      hasFitInitialBoundsRef.current = true;
+    const vesselBounds = getVesselBounds(vessels);
+    if (!selectedMmsi && vesselBounds) {
+      const mapContainsAllVessels = map.getBounds().pad(-0.08).contains(vesselBounds);
+      if (vessels.length !== lastAutoFitVesselCountRef.current || !mapContainsAllVessels) {
+        fitAllVessels(false);
+      }
     }
-  }, [vessels, selectedMmsi, onSelectVessel]);
+  }, [fitAllVessels, vessels, selectedMmsi, onSelectVessel]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -171,7 +194,33 @@ export function MapView({
     }
   }, [autoFollow, selectedMmsi, vessels]);
 
-  return <div ref={containerRef} className="map-shell" aria-label="Interactive vessel tracking map" />;
+  return (
+    <div className="map-container">
+      <div ref={containerRef} className="map-shell" aria-label="Interactive vessel tracking map" />
+      <button
+        className="map-fit-button"
+        type="button"
+        title="Fit all vessels"
+        aria-label="Fit all vessels on the map"
+        disabled={vessels.length === 0}
+        onClick={() => fitAllVessels(true)}
+      >
+        <Maximize2 size={18} />
+      </button>
+    </div>
+  );
+}
+
+function getVesselBounds(vessels: VesselPosition[]): L.LatLngBounds | null {
+  const coordinates = vessels
+    .filter((vessel) => Number.isFinite(vessel.latitude) && Number.isFinite(vessel.longitude))
+    .map((vessel) => [vessel.latitude, vessel.longitude] as L.LatLngTuple);
+
+  if (coordinates.length === 0) {
+    return null;
+  }
+
+  return L.latLngBounds(coordinates);
 }
 
 function createVesselIcon(vessel: VesselPosition, selected: boolean): L.DivIcon {
